@@ -1,10 +1,10 @@
 <?php
 
 /*
-Plugin name: Like Button
-Description: Add a like button to your posts.
+Plugin Name: Like Button
+Description: Adds a like button to posts
 Version: 1.0
-Author: Eemi
+Author: ILE
 */
 
 // Create table
@@ -37,15 +37,30 @@ function like_button() {
 
     $post_id = get_the_ID();
 
+    // get all likes for count
     $results = $wpdb->get_results( "SELECT * FROM $table_name WHERE post_id = $post_id" );
 
     $likes = count( $results );
 
+    $user_id = get_current_user_id();
 
-    $output = '<form id="like-form" method="post" action="'. admin_url( 'admin-post.php' ) .'">';
+    // get user likes
+    $user_like = $wpdb->get_results( "SELECT * FROM $table_name WHERE post_id = $post_id AND user_id = $user_id" );
+
+    $icon = 'heart';
+    if ( $user_like ) {
+        $icon = 'heart-dislike';
+    }
+
+    $output = '<form id="like-form" method="post" action="' . admin_url( 'admin-post.php' ) . '">';
     $output .= '<input type="hidden" name="action" value="add_like">';
     $output .= '<input type="hidden" name="post_id" value="' . $post_id . '">';
-    $output .= '<button id="like-button"><ion-icon name="thumbs-up-outline"></ion-icon></button>';
+    $output .= '<button id="like-button" style="
+										    border: 0;
+										    background-color: rgba(0,0,0,0);
+											">';
+    $output .= '<ion-icon name="' . $icon . '" style="color: #e21212;"></ion-icon>';
+    $output .= '</button>';
     $output .= '<span id="like-count">' . $likes . '</span>';
     $output .= '</form>';
 
@@ -62,36 +77,75 @@ function add_like() {
     $table_name = $wpdb->prefix . 'likes';
 
     $post_id = $_POST['post_id'];
+    $user_id = get_current_user_id();
 
-    $data = array(
-        'post_id' => $post_id
-    );
+    $data = [
+        'post_id' => $post_id,
+        'user_id' => $user_id
+    ];
 
-    $format = array(
+    $format = [
+        '%d',
         '%d'
-    );
+    ];
 
-    $success = $wpdb->insert( $table_name, $data, $format );
+    // check if user has already liked
+    $like = $wpdb->get_results( "SELECT * FROM $table_name WHERE post_id = $post_id AND user_id = $user_id" );
 
-    if ( $success ) {
-        echo 'Like added';
-    } else {
-        echo 'Error adding like';
+
+    if ( $like ) {
+        $wpdb->delete( $table_name, $data, $format );
+
+        // get all likes for count
+        $results = $wpdb->get_results( "SELECT * FROM $table_name WHERE post_id = $post_id" );
+
+        $likes = count( $results );
+        header( 'Content-Type: application/json' );
+        echo '{
+			"likes": ' . $likes . ',
+			"liked": false,
+			"message": "Like removed"		
+		}';
+        // wp_redirect( $_SERVER['HTTP_REFERER'] );
+        exit;
     }
 
 
-    wp_redirect( $_SERVER['HTTP_REFERER'] );
+    $success = $wpdb->insert( $table_name, $data, $format );
+
+    // get all likes for count
+    $results = $wpdb->get_results( "SELECT * FROM $table_name WHERE post_id = $post_id" );
+
+    $likes = count( $results );
+
+    if ( $success ) {
+        header( 'Content-Type: application/json' );
+        echo '{
+			"likes": ' . $likes . ',
+			"liked": true,
+			"message": "Like added"		
+		}';
+    } else {
+        header( 'HTTP/1.1 500 Internal Server Error');
+    }
+
+
+    // wp_redirect( $_SERVER['HTTP_REFERER'] );
     exit;
 }
 
-// add_action( 'wp_ajax_add_like', 'add_like' );
+add_action( 'wp_ajax_add_like', 'add_like' );
 
-add_action( 'admin_post_add_like', 'add_like' );
+// add_action( 'admin_post_add_like', 'add_like' );
 
 // enqueue icons
-function my_theme_load_ionicons_font() {
+function setup_scripts(): void {
     // Load Ionicons font from CDN
-    wp_enqueue_script( 'thumbs-down-outline', 'https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js', array(), '7.1.0', true );
+    wp_enqueue_script( 'my-theme-ionicons', 'https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js', [], '7.1.0', true );
+    wp_enqueue_script( 'like-button-script', plugin_dir_url( __FILE__ ) . 'like-button.js', [ 'jquery' ], '1.0', true );
+    wp_localize_script( 'like-button-script', 'like_button', [
+        'ajax_url' => admin_url( 'admin-ajax.php' )
+    ] );
 }
 
-add_action( 'wp_enqueue_scripts', 'my_theme_load_ionicons_font' );
+add_action( 'wp_enqueue_scripts', 'setup_scripts' );

@@ -48,6 +48,20 @@ function style_setup(): void {
 
 add_action( 'wp_enqueue_scripts', 'style_setup' );
 
+// load styles
+
+function script_setup(): void
+{
+    wp_enqueue_script('main-script', get_template_directory_uri() . '/js/singlePost.js', [], '1.0', true);
+    $script_data = [
+        'ajax_url' => admin_url('admin-ajax.php'),
+    ];
+    wp_localize_script('main-script', 'ajax_object', $script_data);
+}
+
+add_action('wp_enqueue_scripts', 'script_setup');
+
 // custom functions
 require_once( __DIR__ . '/inc/article-function.php' );
 require_once( __DIR__ . '/inc/random-image.php' );
+require_once( __DIR__ . '/ajax-functions/single-post-function.php' );
