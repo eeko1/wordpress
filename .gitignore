@@ -6,6 +6,7 @@
 #
 # Note: if you want to stage/commit WP core files
 # you can delete this whole section/until Configuration.
+/wp-content/themes/example-theme/node_modules
 /wp-admin/
 /wp-content/index.php
 /wp-content/languages
@@ -154,3 +155,4 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+/wp-content/themes/example-theme/node_modules/
